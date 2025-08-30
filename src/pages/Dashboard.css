@@ -1,0 +1,104 @@
+.dashboard-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: #f7f7f7;
+    font-family: 'Inter', sans-serif;
+    color: #333;
+}
+
+.dashboard-header {
+    background-color: #fff;
+    padding: 20px 40px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.dashboard-header h1 {
+    margin: 0;
+    font-size: 2.5rem;
+    color: #2c3e50;
+}
+
+.dashboard-header p {
+    font-size: 1.2rem;
+    color: #7f8c8d;
+    margin-top: 5px;
+}
+
+.dashboard-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px;
+    gap: 30px;
+}
+
+.editor-section {
+    width: 100%;
+    max-width: 800px;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+.rich-text-editor-container {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #ddd;
+}
+
+.toolbar-class {
+    background-color: #ecf0f1 !important;
+    border-bottom: 1px solid #bdc3c7 !important;
+    border-radius: 8px 8px 0 0 !important;
+}
+
+.editor-class {
+    background-color: #fff;
+    min-height: 250px;
+    padding: 15px !important;
+}
+
+.journals-list-section {
+    width: 100%;
+    max-width: 800px;
+}
+
+.journals-list-section h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #34495e;
+}
+
+.journals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.journal-entry-card {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.journal-entry-card h3 {
+    margin-top: 0;
+    color: #2980b9;
+}
+
+.journal-entry-card p {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+}
+
+.loading-state,
+.error-state {
+    text-align: center;
+    font-size: 1.5rem;
+    color: #e74c3c;
+    padding: 50px;
+}
