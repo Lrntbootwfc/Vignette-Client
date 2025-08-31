@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { EditorState, convertToRaw, convertFromHTML, ContentState } from 'draft-js';
-import { Editor } from 'react-draft-wysiwyg';
-import draftToHtml from 'draftjs-to-html';
-import htmlToDraft from 'html-to-draftjs';
-import 'react-draft-wysiwyg/dist/react-draft-wysiwyg.css';
+import { LexicalComposer } from '@lexical/react/LexicalComposer';
+import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
+import { ContentEditable } from '@lexical/react/LexicalContentEditable';
+import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
+// import { ErrorBoundary as LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import './Dashboard.css';
 import api from '../services/api';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
-    const [editorState, setEditorState] = useState(EditorState.createEmpty());
+    const [editorState, setEditorState] = useState(null);
     const [journals, setJournals] = useState([]);
     const [gamificationData, setGamificationData] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [title, setTitle] = useState('');
     const [saving, setSaving] = useState(false);
+    const [isEditorLoaded, setIsEditorLoaded] = useState(false); // Correctly declare the state here
 
     useEffect(() => {
         const fetchData = async () => {
@@ -35,6 +38,7 @@ const Dashboard = () => {
                 setError('Failed to load data. Please ensure you are logged in correctly.');
             } finally {
                 setLoading(false);
+                setIsEditorLoaded(true);
             }
         };
 
@@ -44,44 +48,32 @@ const Dashboard = () => {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const contentState = editorState.getCurrentContent();
-            const htmlContent = draftToHtml(convertToRaw(contentState));
-
-            // We need to pass the user ID from the login token
-            const user = localStorage.getItem('user_id');
-            if (!user) {
-                setError("User not authenticated. Please log in.");
-                setSaving(false);
-                return;
-            }
-
+            const editorStateJSON = editorState.toJSON();
             const newEntry = {
                 title: title || 'Untitled Entry',
-                content: htmlContent,
-                user: user // Sending the user ID with the request
+                content: JSON.stringify(editorStateJSON),
             };
 
             await api.post('/journal-entries/journal-entries/', newEntry);
 
-            // Clear the editor and title after saving
-            setEditorState(EditorState.createEmpty());
+            setEditorState(null);
             setTitle('');
 
-            // Refresh the list of journals
             const journalsResponse = await api.get('/journal-entries/journal-entries/');
             setJournals(journalsResponse.data);
 
         } catch (err) {
             console.error('Failed to save journal:', err.response);
-            setError('Failed to save journal entry.');
+            setError('Failed to save journal entry. Please check your token or if you are logged in.');
         } finally {
             setSaving(false);
         }
     };
-
     const getHtmlFromDraft = (rawContent) => {
-        if (!rawContent) return { __html: '' };
-        return { __html: draftToHtml(rawContent) };
+        if (!rawContent) {
+            return { __html: '' };
+        }
+        return { __html: rawContent };
     };
 
     if (loading) {
@@ -110,14 +102,19 @@ const Dashboard = () => {
                         className="title-input"
                     />
                     <div className="rich-text-editor-container">
-                        <Editor
-                            editorState={editorState}
-                            onEditorStateChange={setEditorState}
-                            toolbarClassName="toolbar-class"
-                            wrapperClassName="wrapper-class"
-                            editorClassName="editor-class"
-                            placeholder="Write your diary entry here..."
-                        />
+                        <LexicalComposer initialConfig={{
+                            namespace: 'MyEditor',
+                            onError: (e) => console.error(e),
+                            editorState: null,
+                        }}>
+                            <RichTextPlugin
+                                contentEditable={<ContentEditable className="editor-class" />}
+                                placeholder={<div className="placeholder">Start typing here...</div>}
+                                ErrorBoundary={LexicalErrorBoundary}
+                            />
+                            <HistoryPlugin />
+                            <OnChangePlugin onChange={(editorState) => setEditorState(editorState)} />
+                        </LexicalComposer>
                     </div>
                     <button onClick={handleSave} className="save-button" disabled={saving}>
                         {saving ? 'Saving...' : 'Save Entry'}
@@ -129,11 +126,13 @@ const Dashboard = () => {
                     <div className="journals-list">
                         {journals.length > 0 ? (
                             journals.map((journal) => (
-                                <div key={journal.id} className="journal-entry-card">
-                                    <h3>{journal.title || 'Untitled Entry'}</h3>
-                                    <div dangerouslySetInnerHTML={getHtmlFromDraft(journal.content)} />
-                                    <p>Date: {new Date(journal.date_created).toLocaleDateString()}</p>
-                                </div>
+                                <Link to={`/journal/${journal.id}`} key={journal.id} className="journal-link">
+                                    <div className="journal-entry-card">
+                                        <h3>{journal.title || 'Untitled Entry'}</h3>
+                                        <div dangerouslySetInnerHTML={getHtmlFromDraft(journal.content)} />
+                                        <p>Date: {new Date(journal.date_created).toLocaleDateString()}</p>
+                                    </div>
+                                </Link>
                             ))
                         ) : (
                             <p>No journal entries yet. Start writing one above!</p>

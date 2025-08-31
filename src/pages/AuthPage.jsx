@@ -29,14 +29,38 @@ const AuthPage = ({ onLogin }) => {
                 const response = await api.post('/token/', { username, password });
                 localStorage.setItem('access_token', response.data.access);
                 localStorage.setItem('refresh_token', response.data.refresh);
-                const userDetails = await api.get(`/journal-entries/users/?username=${username}`);
-                localStorage.setItem('user_id', userDetails.data[0].id);
+                const userDetails = await api.get(`/users/?username=${username}`);
+                if (userDetails.data && userDetails.data.length > 0) {
+                    localStorage.setItem('user_id', userDetails.data[0].id);
+                } else {
+                    setError('User not found. Please check your username.');
+                    return;
+                }
                 onLogin(response.data.access);
                 navigate('/'); // <-- Add this line for redirection
             }
         } catch (err) {
             console.error(err.response);
-            setError('Login or registration failed. Please check your credentials.');
+            if (err.response && err.response.data) {
+                if (err.response.status === 400) {
+                    // Handle validation errors
+                    const errorData = err.response.data;
+                    if (typeof errorData === 'object') {
+                        const errorMessages = Object.entries(errorData).map(([field, errors]) => 
+                            `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`
+                        ).join('; ');
+                        setError(`Validation error: ${errorMessages}`);
+                    } else {
+                        setError(`Error: ${errorData}`);
+                    }
+                } else if (err.response.status === 404) {
+                    setError('User not found. Please check your username.');
+                } else {
+                    setError('Login or registration failed. Please check your credentials.');
+                }
+            } else {
+                setError('Network error. Please check your connection.');
+            }
         } finally {
             setLoading(false);
         }
