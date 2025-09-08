@@ -21,6 +21,11 @@ const Dashboard = () => {
     const [isEditorLoaded, setIsEditorLoaded] = useState(false);
     const [workingEndpoint, setWorkingEndpoint] = useState(null);
     const [generatingComic, setGeneratingComic] = useState(false);
+    const [characterId, setCharacterId] = useState(null);
+    const [characters, setCharacters] = useState([]);
+
+
+
 
     // Function to convert Lexical JSON to HTML
     const convertLexicalToHtml = (lexicalData) => {
@@ -72,30 +77,41 @@ const Dashboard = () => {
     const handleGenerateComic = async (journalId) => {
         setGeneratingComic(true);
         try {
-            const response = await api.post(`/generate-comic/${journalId}/`);
+            const response = await api.post(
+                `/journal-entries/${journalId}/create-comic/`,
+                { character_id: characterId }   // required by backend
+            );
             console.log('Comic generation initiated:', response.data);
 
-            // NEW: Better error handling for journal refresh after comic generation
-            try {
-                const journalEndpoints = [
-                    '/journal-entries/',
-                    '/journals/',
-                    '/api/journal-entries/',
-                    '/api/journals/'
-                ];
+            setJournals(prevJournals =>
+                prevJournals.map(journal =>
+                    journal.id === journalId
+                        ? { ...journal, comic_entry: response.data } // update comic_entry for this journal
+                        : journal
+                )
+            );
 
-                for (const endpoint of journalEndpoints) {
-                    try {
-                        const journalsResponse = await api.get(endpoint);
-                        setJournals(journalsResponse.data.results || journalsResponse.data || []);
-                        break;
-                    } catch (endpointError) {
-                        continue;
-                    }
-                }
-            } catch (refreshError) {
-                console.log('Could not refresh journals after comic generation');
-            }
+            // try {
+            //     const journalEndpoints = [
+            //         '/journal-entries/',
+            //         '/journals/',
+            //         '/api/journal-entries/',
+            //         '/api/journals/'
+            //     ];
+
+            //     for (const endpoint of journalEndpoints) {
+            //         try {
+            //             const journalsResponse = await api.get(endpoint);
+            //             setJournals(journalsResponse.data.results || journalsResponse.data || []);
+            //             break;
+            //         } catch (endpointError) {
+            //             continue;
+            //         }
+            //     }
+            // } catch (refreshError) {
+            //     console.log('Could not refresh journals after comic generation');
+            // }
+
 
         } catch (err) {
             console.error('Failed to generate comic:', err);
@@ -106,6 +122,22 @@ const Dashboard = () => {
     };
 
     useEffect(() => {
+        const fetchCharacters = async () => {
+            try {
+                const res = await api.get('/characters/');
+                setCharacters(res.data || []);
+            } catch (err) {
+                console.error('Failed to load characters:', err);
+            }
+        };
+        fetchCharacters();
+    }, []);
+
+
+
+
+
+    useEffect(() => {
         const fetchData = async () => {
             // NEW: Multiple endpoint fallback system for better error handling
             try {
@@ -113,27 +145,19 @@ const Dashboard = () => {
 
                 // Try multiple possible endpoints for journal entries
                 let journalsData = [];
-                const journalEndpoints = [
-                    '/journal-entries/',
-                    '/journals/',
-                    '/api/journal-entries/',
-                    '/api/journals/'
-                ];
-
-                // NEW: Suppress console errors during endpoint testing
                 let journalsLoaded = false;
-                
-                    try {
-                        const journalsResponse = await api.get('journal-entries/');
-                        journalsData = journalsResponse.data.results || journalsResponse.data || [];
-                        journalsLoaded = true;
-                        console.log(`✅ Successfully loaded from: ${endpoint}`);
-                    
-                    } catch (endpointError) {
-                        // Silently continue to next endpoint
-                    
-                    }
-                
+
+                try {
+                    const journalsResponse = await api.get('journal-entries/');
+                    journalsData = journalsResponse.data.results || journalsResponse.data || [];
+                    journalsLoaded = true;
+                    console.log(`✅ Successfully loaded from: ${endpoint}`);
+
+                } catch (endpointError) {
+                    // Silently continue to next endpoint
+
+                }
+
 
                 if (!journalsLoaded) {
                     // If all endpoints fail, set empty array and show a more specific error
@@ -165,8 +189,6 @@ const Dashboard = () => {
 
         fetchData();
     }, []);
-
-    // MOVED: Debug useEffect moved before return statement to fix React Hooks rule violation
     useEffect(() => {
         console.log('Journals data:', journals);
         if (journals.length > 0) {
@@ -384,29 +406,47 @@ const Dashboard = () => {
                                         <p>Date: {journal.date_created ? new Date(journal.date_created).toLocaleDateString() : 'No date'}</p>
                                     </Link>
 
+                                    {/* <select
+                                        value={characterId || ''}
+                                        onChange={(e) => setCharacterId(e.target.value)}
+                                        style={{ marginTop: '10px', padding: '5px' }}
+                                    >
+                                        <option value="" disabled>Select Character</option>
+                                        {characters.map((char) => (
+                                            <option key={char.id} value={char.id}>{char.name}</option>
+                                        ))}
+                                    </select> */}
+
+
                                     {/* Add comic generation button - outside the Link to prevent navigation */}
-                                    {journal && (!journal.comic_entry || journal.comic_entry === null || journal.comic_entry === false) && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                handleGenerateComic(journal.id);
-                                            }}
-                                            disabled={generatingComic}
-                                            className="comic-generate-button"
-                                            style={{
-                                                marginTop: '10px',
-                                                padding: '8px 16px',
-                                                backgroundColor: '#4CAF50',
-                                                color: 'white',
-                                                border: 'none',
-                                                borderRadius: '4px',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            {generatingComic ? 'Generating...' : 'Make Comic'}
-                                        </button>
-                                    )}
+                                    {/* {journal && (!journal.comic_entry || journal.comic_entry === null || journal.comic_entry === false) && ( */}
+                                    {!journal.comic_entry
+                                        && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    if (!characterId) {
+                                                        setError('Please select a character before generating comic.');
+                                                        return;
+                                                    }
+                                                    handleGenerateComic(journal.id);
+                                                }}
+                                                disabled={generatingComic}
+                                                className="comic-generate-button"
+                                                style={{
+                                                    marginTop: '10px',
+                                                    padding: '8px 16px',
+                                                    backgroundColor: '#4CAF50',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                {generatingComic ? 'Generating...' : 'Make Comic'}
+                                            </button>
+                                        )}
 
                                     {/* Debug info for individual entries */}
                                     <details style={{ fontSize: '10px', marginTop: '5px' }}>

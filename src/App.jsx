@@ -4,6 +4,7 @@ import { Editor } from 'react-draft-wysiwyg';
 import 'react-draft-wysiwyg/dist/react-draft-wysiwyg.css';
 import './App.css';
 import api from './services/api';
+import AuthPage from './pages/AuthPage';
 
 function App() {
   const [editorState, setEditorState] = useState(
@@ -13,8 +14,19 @@ function App() {
   const [gamificationData, setGamificationData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [token, setToken] = useState(null);
+
+
 
   useEffect(() => {
+    const savedToken = localStorage.getItem('access_token');
+    if (savedToken) {
+      setToken(savedToken);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!token) return;
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -39,7 +51,23 @@ function App() {
     };
 
     fetchData();
-  }, []);
+  }, [token]);
+
+  const handleLogin = (newToken) => {
+    setToken(newToken); // when AuthPage calls onLogin
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user_id');
+    setToken(null);
+  };
+
+  if (!token) {
+    return <AuthPage onLogin={handleLogin} />;
+  }
+
 
   if (loading) {
     return <div className="loading-state">Loading user data...</div>;
