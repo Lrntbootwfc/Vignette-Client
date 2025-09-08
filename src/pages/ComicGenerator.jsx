@@ -1,21 +1,33 @@
-// src/components/ComicGenerator.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createComic } from '../services/comicApi';
-import ComicDisplay from './ComicDisplay'; // Assuming this new component exists
-
-// Predefined characters for the gallery
-// In a real app, these would be fetched from the backend.
-const characters = [
-    { id: 1, name: "Cartoon Cat", image_url: "https://placehold.co/100x100/A051A4/white?text=Cat" },
-    { id: 2, name: "Mystic Wizard", image_url: "https://placehold.co/100x100/F5C04A/white?text=Wizard" },
-    { id: 3, name: "Space Adventurer", image_url: "https://placehold.co/100x100/1296F0/white?text=Space" },
-];
+import ComicDisplay from './ComicDisplay';
+import api from '../services/api';
 
 const ComicGenerator = ({ journalEntryId }) => {
     const [selectedCharacter, setSelectedCharacter] = useState(null);
     const [comic, setComic] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [characters, setCharacters] = useState([]);
+
+    // Fetch characters from backend
+    useEffect(() => {
+        const fetchCharacters = async () => {
+            try {
+                const response = await api.get('/characters/');
+                setCharacters(response.data.results || response.data);
+            } catch (err) {
+                console.error('Error fetching characters:', err);
+                // Fallback to default characters if API fails
+                setCharacters([
+                    { id: 1, name: "Cartoon Cat", image_url: "https://placehold.co/100x100/A051A4/white?text=Cat" },
+                    { id: 2, name: "Mystic Wizard", image_url: "https://placehold.co/100x100/F5C04A/white?text=Wizard" },
+                    { id: 3, name: "Space Adventurer", image_url: "https://placehold.co/100x100/1296F0/white?text=Space" },
+                ]);
+            }
+        };
+        fetchCharacters();
+    }, []);
 
     const handleCreateComic = async () => {
         if (!selectedCharacter) {
@@ -30,6 +42,8 @@ const ComicGenerator = ({ journalEntryId }) => {
         try {
             const newComic = await createComic(journalEntryId, selectedCharacter.id);
             setComic(newComic);
+            // Refresh the page to show the new comic
+            window.location.reload();
         } catch (err) {
             setError(err.response?.data?.error || 'Failed to create comic. Please try again.');
         } finally {
@@ -53,18 +67,19 @@ const ComicGenerator = ({ journalEntryId }) => {
                                     className={`character-card ${selectedCharacter?.id === char.id ? 'selected' : ''}`}
                                     onClick={() => setSelectedCharacter(char)}
                                 >
-                                    <img src={char.image_url} alt={char.name} />
+                                    <img src={char.image_url || char.avatar} alt={char.name} style={{width: '100px', height: '100px', objectFit: 'cover'}} />
                                     <p>{char.name}</p>
+                                    {char.relationship && <small>{char.relationship}</small>}
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Relationship Mapping (Placeholder) */}
+                    {/* Relationship Mapping */}
                     {selectedCharacter && (
                         <div className="relationship-mapping-section">
-                            <h4>2. Relationship Mapping</h4>
-                            <p>The selected character, **{selectedCharacter.name}**, will represent your persona in the comic. More complex mapping features will be added later.</p>
+                            <h4>2. Relationship: {selectedCharacter.relationship || 'Not specified'}</h4>
+                            <p>{selectedCharacter.description || 'No description available.'}</p>
                         </div>
                     )}
 
@@ -73,10 +88,19 @@ const ComicGenerator = ({ journalEntryId }) => {
                         onClick={handleCreateComic}
                         disabled={!selectedCharacter || isLoading}
                         className="create-comic-button"
+                        style={{
+                            padding: '10px 20px',
+                            backgroundColor: '#4CAF50',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '5px',
+                            cursor: 'pointer',
+                            marginTop: '20px'
+                        }}
                     >
                         {isLoading ? 'Generating Comic...' : 'Generate Comic'}
                     </button>
-                    {error && <p className="error-message">{error}</p>}
+                    {error && <p className="error-message" style={{color: 'red', marginTop: '10px'}}>{error}</p>}
                 </>
             )}
         </div>

@@ -24,92 +24,139 @@ const Dashboard = () => {
 
     // Function to convert Lexical JSON to HTML
     const convertLexicalToHtml = (lexicalData) => {
-      if (!lexicalData) return '<p>No content</p>';
-      
-      try {
-        const parsedData = typeof lexicalData === 'string' ? JSON.parse(lexicalData) : lexicalData;
-        
-        if (!parsedData.root || !parsedData.root.children) return '<p>No content</p>';
-        
-        const convertNode = (node) => {
-          if (node.type === 'text') {
-            return node.text || '';
-          } else if (node.type === 'paragraph') {
-            const content = node.children ? node.children.map(convertNode).join('') : '';
-            return `<p>${content}</p>`;
-          } else if (node.type === 'heading' && node.tag) {
-            const content = node.children ? node.children.map(convertNode).join('') : '';
-            return `<${node.tag}>${content}</${node.tag}>`;
-          } else if (node.type === 'list' && node.listType === 'bullet') {
-            const items = node.children ? node.children.map(child => 
-              `<li>${child.children ? child.children.map(convertNode).join('') : ''}</li>`
-            ).join('') : '';
-            return `<ul>${items}</ul>`;
-          } else if (node.type === 'list' && node.listType === 'number') {
-            const items = node.children ? node.children.map(child => 
-              `<li>${child.children ? child.children.map(convertNode).join('') : ''}</li>`
-            ).join('') : '';
-            return `<ol>${items}</ol>`;
-          } else if (node.children) {
-            return node.children.map(convertNode).join('');
-          }
-          return '';
-        };
-        
-        const htmlContent = parsedData.root.children.map(convertNode).join('');
-        return htmlContent || '<p>No content</p>';
-      } catch (e) {
-        console.error('Error converting Lexical to HTML:', e);
-        return '<p>Error displaying content</p>';
-      }
+        if (!lexicalData) return '<p>No content</p>';
+
+        try {
+            const parsedData = typeof lexicalData === 'string' ? JSON.parse(lexicalData) : lexicalData;
+
+            if (!parsedData.root || !parsedData.root.children) return '<p>No content</p>';
+
+            const convertNode = (node) => {
+                if (node.type === 'text') {
+                    return node.text || '';
+                } else if (node.type === 'paragraph') {
+                    const content = node.children ? node.children.map(convertNode).join('') : '';
+                    return `<p>${content}</p>`;
+                } else if (node.type === 'heading' && node.tag) {
+                    const content = node.children ? node.children.map(convertNode).join('') : '';
+                    return `<${node.tag}>${content}</${node.tag}>`;
+                } else if (node.type === 'list' && node.listType === 'bullet') {
+                    const items = node.children ? node.children.map(child =>
+                        `<li>${child.children ? child.children.map(convertNode).join('') : ''}</li>`
+                    ).join('') : '';
+                    return `<ul>${items}</ul>`;
+                } else if (node.type === 'list' && node.listType === 'number') {
+                    const items = node.children ? node.children.map(child =>
+                        `<li>${child.children ? child.children.map(convertNode).join('') : ''}</li>`
+                    ).join('') : '';
+                    return `<ol>${items}</ol>`;
+                } else if (node.children) {
+                    return node.children.map(convertNode).join('');
+                }
+                return '';
+            };
+
+            const htmlContent = parsedData.root.children.map(convertNode).join('');
+            return htmlContent || '<p>No content</p>';
+        } catch (e) {
+            console.error('Error converting Lexical to HTML:', e);
+            return '<p>Error displaying content</p>';
+        }
     };
 
     const getHtmlFromLexical = (lexicalData) => {
-      return { __html: convertLexicalToHtml(lexicalData) };
+        return { __html: convertLexicalToHtml(lexicalData) };
     };
 
     // Function to handle comic generation
     const handleGenerateComic = async (journalId) => {
-      setGeneratingComic(true);
-      try {
-        const response = await api.post(`/generate-comic/${journalId}/`);
-        console.log('Comic generation initiated:', response.data);
-        
-        // Refresh journals to see the updated comic status
-        const journalsResponse = await api.get('/journal-entries/');
-        setJournals(journalsResponse.data);
-        
-      } catch (err) {
-        console.error('Failed to generate comic:', err);
-        setError('Failed to generate comic. Please try again.');
-      } finally {
-        setGeneratingComic(false);
-      }
+        setGeneratingComic(true);
+        try {
+            const response = await api.post(`/generate-comic/${journalId}/`);
+            console.log('Comic generation initiated:', response.data);
+
+            // NEW: Better error handling for journal refresh after comic generation
+            try {
+                const journalEndpoints = [
+                    '/journal-entries/',
+                    '/journals/',
+                    '/api/journal-entries/',
+                    '/api/journals/'
+                ];
+
+                for (const endpoint of journalEndpoints) {
+                    try {
+                        const journalsResponse = await api.get(endpoint);
+                        setJournals(journalsResponse.data.results || journalsResponse.data || []);
+                        break;
+                    } catch (endpointError) {
+                        continue;
+                    }
+                }
+            } catch (refreshError) {
+                console.log('Could not refresh journals after comic generation');
+            }
+
+        } catch (err) {
+            console.error('Failed to generate comic:', err);
+            setError('Failed to generate comic. Please try again.');
+        } finally {
+            setGeneratingComic(false);
+        }
     };
 
     useEffect(() => {
         const fetchData = async () => {
+            // NEW: Multiple endpoint fallback system for better error handling
             try {
                 setLoading(true);
 
-                // Use consistent API endpoints
-                const journalsResponse = await api.get('/journal-entries/');
-                console.log('Fetched journals:', journalsResponse.data);
-                setJournals(journalsResponse.data);
+                // Try multiple possible endpoints for journal entries
+                let journalsData = [];
+                const journalEndpoints = [
+                    '/journal-entries/',
+                    '/journals/',
+                    '/api/journal-entries/',
+                    '/api/journals/'
+                ];
+
+                // NEW: Suppress console errors during endpoint testing
+                let journalsLoaded = false;
+                
+                    try {
+                        const journalsResponse = await api.get('journal-entries/');
+                        journalsData = journalsResponse.data.results || journalsResponse.data || [];
+                        journalsLoaded = true;
+                        console.log(`✅ Successfully loaded from: ${endpoint}`);
+                    
+                    } catch (endpointError) {
+                        // Silently continue to next endpoint
+                    
+                    }
+                
+
+                if (!journalsLoaded) {
+                    // If all endpoints fail, set empty array and show a more specific error
+                    console.log('All journal endpoints failed, setting empty array');
+                    journalsData = [];
+                }
+
+                setJournals(journalsData);
 
                 try {
-                  const gamificationResponse = await api.get('/gamification/streaks/');
-                  if (gamificationResponse.data.length > 0) {
-                      setGamificationData(gamificationResponse.data[0]);
-                  }
+                    const gamificationResponse = await api.get('/gamification/streaks/');
+                    if (gamificationResponse.data.length > 0) {
+                        setGamificationData(gamificationResponse.data[0]);
+                    }
                 } catch (gamificationError) {
-                  console.log('Gamification data not available:', gamificationError);
+                    console.log('Gamification data not available:', gamificationError);
                 }
 
                 setError(null);
             } catch (err) {
                 console.error('Failed to fetch data:', err);
-                setError('Failed to load data. Please ensure you are logged in correctly.');
+                // NEW: More helpful error message
+                setError('Failed to load data. The server may be experiencing issues. You can still create new entries.');
             } finally {
                 setLoading(false);
                 setIsEditorLoaded(true);
@@ -118,6 +165,15 @@ const Dashboard = () => {
 
         fetchData();
     }, []);
+
+    // MOVED: Debug useEffect moved before return statement to fix React Hooks rule violation
+    useEffect(() => {
+        console.log('Journals data:', journals);
+        if (journals.length > 0) {
+            console.log('First journal structure:', journals[0]);
+            console.log('First journal content:', journals[0].content);
+        }
+    }, [journals]);
 
     const handleSave = async () => {
         // Validate before saving
@@ -182,9 +238,27 @@ const Dashboard = () => {
             setEditorState(null);
             setTitle('');
 
-            // Refresh the journals list
-            const journalsResponse = await api.get('/journal-entries/');
-            setJournals(journalsResponse.data);
+            // NEW: Better error handling for journal refresh after saving
+            try {
+                const journalEndpoints = [
+                    '/journal-entries/',
+                    '/journals/',
+                    '/api/journal-entries/',
+                    '/api/journals/'
+                ];
+
+                for (const endpoint of journalEndpoints) {
+                    try {
+                        const journalsResponse = await api.get(endpoint);
+                        setJournals(journalsResponse.data.results || journalsResponse.data || []);
+                        break;
+                    } catch (endpointError) {
+                        continue;
+                    }
+                }
+            } catch (refreshError) {
+                console.log('Could not refresh journals list');
+            }
 
             console.log('Entry saved successfully'); // Debug log
 
@@ -309,11 +383,15 @@ const Dashboard = () => {
                                         <div dangerouslySetInnerHTML={getHtmlFromLexical(journal.content)} />
                                         <p>Date: {journal.date_created ? new Date(journal.date_created).toLocaleDateString() : 'No date'}</p>
                                     </Link>
-                                    
+
                                     {/* Add comic generation button - outside the Link to prevent navigation */}
-                                    {!journal.comic_entry && (
-                                        <button 
-                                            onClick={() => handleGenerateComic(journal.id)}
+                                    {journal && (!journal.comic_entry || journal.comic_entry === null || journal.comic_entry === false) && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                handleGenerateComic(journal.id);
+                                            }}
                                             disabled={generatingComic}
                                             className="comic-generate-button"
                                             style={{
@@ -329,7 +407,7 @@ const Dashboard = () => {
                                             {generatingComic ? 'Generating...' : 'Make Comic'}
                                         </button>
                                     )}
-                                    
+
                                     {/* Debug info for individual entries */}
                                     <details style={{ fontSize: '10px', marginTop: '5px' }}>
                                         <summary>Debug this entry</summary>
