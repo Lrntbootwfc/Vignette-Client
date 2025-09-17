@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard';
 import LandingPage from './pages/LandingPage';
 // import ErrorBoundary from './components/ErrorBoundary';
 import JournalPage from './pages/JournalPage';
+import FolderExplorer from './pages/FolderExplorer';
+import CharactersPage from './pages/CharacterPage';
 
 
 const AppRouter = () => {
@@ -36,6 +38,18 @@ const AppRouter = () => {
                 <Route
                     path="/journal/:id"
                     element={isAuthenticated ? <JournalPage /> : <Navigate to="/login" />}
+                />
+
+                {/* Folder explorer (all saved entries) */}
+                <Route
+                    path="/folders"
+                    element={isAuthenticated ? <FolderExplorer /> : <Navigate to="/login" />}
+                />
+
+                {/* Character mapping page */}
+                <Route
+                    path="/characters"
+                    element={isAuthenticated ? <CharactersPage /> : <Navigate to="/login" />}
                 />
             </Routes>
         </BrowserRouter>

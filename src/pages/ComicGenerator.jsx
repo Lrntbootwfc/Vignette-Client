@@ -12,22 +12,38 @@ const ComicGenerator = ({ journalEntryId }) => {
 
     // Fetch characters from backend
     useEffect(() => {
-        const fetchCharacters = async () => {
-            try {
-                const response = await api.get('/characters/');
-                setCharacters(response.data.results || response.data);
-            } catch (err) {
-                console.error('Error fetching characters:', err);
-                // Fallback to default characters if API fails
-                setCharacters([
-                    { id: 1, name: "Cartoon Cat", image_url: "https://placehold.co/100x100/A051A4/white?text=Cat" },
-                    { id: 2, name: "Mystic Wizard", image_url: "https://placehold.co/100x100/F5C04A/white?text=Wizard" },
-                    { id: 3, name: "Space Adventurer", image_url: "https://placehold.co/100x100/1296F0/white?text=Space" },
-                ]);
-            }
-        };
-        fetchCharacters();
-    }, []);
+    const fetchCharacters = async () => {
+        try {
+            const res = await api.get('/characters/');
+            const charactersData = res.data.results || res.data;
+
+            // Fetch user mappings
+            const mappingsRes = await api.get('/user-characters/');
+            const mappings = {};
+            mappingsRes.data.forEach(item => {
+                mappings[item.character] = item.real_life_name;
+            });
+
+            // Merge mappings into characters
+            const mergedCharacters = charactersData.map(char => ({
+                ...char,
+                relationship: mappings[char.id] || char.relationship || 'Not specified'
+            }));
+
+            setCharacters(mergedCharacters);
+        } catch (err) {
+            console.error('Error fetching characters or mappings:', err);
+            // fallback defaults
+            setCharacters([
+                { id: 1, name: "Cartoon Cat", image_url: "https://placehold.co/100x100/A051A4/white?text=Cat", relationship: 'Not specified' },
+                { id: 2, name: "Mystic Wizard", image_url: "https://placehold.co/100x100/F5C04A/white?text=Wizard", relationship: 'Not specified' },
+                { id: 3, name: "Space Adventurer", image_url: "https://placehold.co/100x100/1296F0/white?text=Space", relationship: 'Not specified' },
+            ]);
+        }
+    };
+    fetchCharacters();
+}, []);
+
 
     const handleCreateComic = async () => {
         if (!selectedCharacter) {

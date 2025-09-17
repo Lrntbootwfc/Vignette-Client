@@ -1,12 +1,79 @@
-# React + Vite
+<div className="journals-list-section">
+                    <h2>Your Journals</h2>
+                    {/* Debug info */}
+                    <div style={{ marginBottom: '10px', padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px', fontSize: '12px' }}>
+                        <strong>Debug:</strong> Found {journals.length} journal entries
+                        {journals.length > 0 && (
+                            <details style={{ marginTop: '5px' }}>
+                                <summary>Show journal data</summary>
+                                <pre style={{ fontSize: '10px', overflow: 'auto', maxHeight: '200px' }}>
+                                    {JSON.stringify(journals, null, 2)}
+                                </pre>
+                            </details>
+                        )}
+                    </div>
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+                    <div className="journals-list">
+                        {journals.length > 0 ? (
+                            journals.map((journal) => (
+                                <div key={journal.id} className="journal-entry-card">
+                                    <Link to={`/journal/${journal.id}`} className="journal-link">
+                                        <h3>{journal.title || 'Untitled Entry'}</h3>
+                                        <div dangerouslySetInnerHTML={getHtmlFromLexical(journal.content)} />
+                                        <p>Date: {journal.date_created ? new Date(journal.date_created).toLocaleDateString() : 'No date'}</p>
+                                    </Link>
 
-Currently, two official plugins are available:
+                                    {/* <select
+                                        value={characterId || ''}
+                                        onChange={(e) => setCharacterId(e.target.value)}
+                                        style={{ marginTop: '10px', padding: '5px' }}
+                                    >
+                                        <option value="" disabled>Select Character</option>
+                                        {characters.map((char) => (
+                                            <option key={char.id} value={char.id}>{char.name}</option>
+                                        ))}
+                                    </select> */}
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## Expanding the ESLint configuration
+                                    {/* Add comic generation button - outside the Link to prevent navigation */}
+                                    {/* {journal && (!journal.comic_entry || journal.comic_entry === null || journal.comic_entry === false) && ( */}
+                                    {!journal.comic_entry
+                                        && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    if (!characterId) {
+                                                        setError('Please select a character before generating comic.');
+                                                        return;
+                                                    }
+                                                    handleGenerateComic(journal.id);
+                                                }}
+                                                disabled={generatingComic}
+                                                className="comic-generate-button"
+                                                style={{
+                                                    marginTop: '10px',
+                                                    padding: '8px 16px',
+                                                    backgroundColor: '#4CAF50',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                {generatingComic ? 'Generating...' : 'Make Comic'}
+                                            </button>
+                                        )}
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+                                    {/* Debug info for individual entries */}
+                                    <details style={{ fontSize: '10px', marginTop: '5px' }}>
+                                        <summary>Debug this entry</summary>
+                                        <pre style={{ fontSize: '9px' }}>{JSON.stringify(journal, null, 2)}</pre>
+                                    </details>
+                                </div>
+                            ))
+                        ) : (
+                            <p>No journal entries yet. Start writing one above!</p>
+                        )}
+                    </div>
+                </div>

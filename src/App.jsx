@@ -5,6 +5,7 @@ import 'react-draft-wysiwyg/dist/react-draft-wysiwyg.css';
 import './App.css';
 import api from './services/api';
 import AuthPage from './pages/AuthPage';
+import 'react-contexify/dist/ReactContexify.css';
 
 function App() {
   const [editorState, setEditorState] = useState(
